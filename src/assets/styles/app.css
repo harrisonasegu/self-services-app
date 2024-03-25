@@ -1,0 +1,41 @@
+/* Custom Font Family */
+* {
+  @font-face {
+    font-family: 'Inter';
+    src: url('@src/assets/fonts/Inter-Thin.woff');
+  }
+}
+/* -------------------- */
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* -------------------- */
+
+
+/* display empty screen when accessed on a device of less than 240px screen size */
+@media screen and (max-width: 229.9px) {
+  body {
+    height: fit-content;
+    padding: 20px;
+    text-align: center;
+    line-height: 25px;
+  }
+  body::after {
+    content: 'Oops! Your device is not supported on this platform.';
+  }
+
+  body * {
+    display: none !important;
+  }
+}
+
+@media (hover: hover) {
+  a:not(.router-link-exact-active):hover {
+    transition: all 0.4s;
+    color: #3C5A99
+      /* $base-color-1 in scss color variable */
+    ;
+  }
+}

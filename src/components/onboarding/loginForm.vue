@@ -1,0 +1,481 @@
+<script setup lang="ts">
+import { computed, reactive, ref } from 'vue'
+
+import {
+  useNotification,
+  NButton,
+  NForm,
+  NFormItem,
+  NInput,
+  // NSwitch,
+  NSpace
+} from 'naive-ui'
+
+import type {
+  FormInst,
+  FormItemRule,
+  FormValidationError,
+  FormRules
+} from 'naive-ui'
+
+import { useResponseNotification } from '@/composables/responseNotification'
+
+import { useResponseMessageStore } from '@/stores/common/responseMessage'
+import { useAuthenticationStore } from '@/stores/modules/authentication'
+
+import { InputRegex } from '@/utils/regex/validations';
+
+import Logo from "@/assets/logo.png";
+
+const notification = useNotification()
+
+const responseMessageStore = useResponseMessageStore()
+const userStore = useAuthenticationStore()
+
+const isLoading = ref<boolean>(false)
+
+const formRef = ref<FormInst | null>(null)
+
+
+const model = reactive({
+  email: '',
+  password: '',
+  rememberMe: false
+})
+
+const inputRequired = computed(() => (
+  model.email === '' ||
+  model.password === ''
+))
+
+const rules: FormRules = {
+  email: [
+    {
+      required: true,
+      validator(rule: FormItemRule, value: string) {
+        if (!value) {
+          return new Error('email is required')
+        } else if (!InputRegex.email.test(value)) {
+          return new Error('email is invalid')
+        }
+        return true
+      },
+      trigger: ['input', 'blur']
+    }
+  ],
+  password: [
+    {
+      required: true,
+      message: 'password is required',
+      trigger: ['input', 'blur']
+    }
+  ]
+}
+
+function showNotification(duration: number) {
+  useResponseNotification(
+    notification,
+    responseMessageStore.response.status,
+    responseMessageStore.response.title,
+    responseMessageStore.response.message,
+    duration
+  )
+}
+
+function loadingState(state: boolean) {
+  isLoading.value = state
+}
+
+function clearInputFields() {
+  model.email = ''
+  model.password = ''
+  model.rememberMe = false
+}
+
+function handleValidateButtonClick(e: MouseEvent) {
+  e.preventDefault()
+  formRef.value?.validate(
+    (errors: Array<FormValidationError> | undefined) => {
+      if (errors) return
+
+      // loading state
+      loadingState(true)
+
+      // proceed to sign in
+      userStore.CustomerAuthentication({
+        email: model.email,
+        password: btoa(model.password)
+      })
+        .then(response => {
+          // show notification for login error
+          if (response.responseCode !== '00') {
+            // loading state
+            loadingState(false)
+            // notification
+            showNotification(5000)
+          } else {
+            // clear input
+            clearInputFields()
+            // loading state
+            loadingState(false)
+            // ------------------------------
+
+            // route to dashboard
+            location.assign('/dashboard')
+          }
+        })
+        .catch(() => {
+          // loading state
+          loadingState(false)
+          // notification
+          showNotification(5000)
+        })
+    }
+  )
+}
+</script>
+
+<template>
+  <div class="form-container">
+    <section class="form-header">
+      <div class="img-container">
+        <img :src="Logo" alt="logo">
+      </div>
+
+      <h3>Sign In</h3>
+    </section>
+
+    <section class="form-body">
+      <div class="onboarding-form">
+        <n-form
+          ref="formRef"
+          :model="model"
+          :rules="rules"
+        >          
+          <n-form-item
+            path="email"
+          >
+            <n-input
+              size="large"
+              placeholder="Email"
+              v-model:value="model.email"
+              :disabled="isLoading"
+              @keydown.enter.prevent
+            />
+          </n-form-item>
+
+          <n-form-item
+            path="password"
+          >
+            <n-input
+              size="large"
+              type="password"
+              placeholder="Password"
+              v-model:value="model.password"
+              :disabled="isLoading"
+              @keydown.enter.prevent
+            />
+          </n-form-item>
+
+          <n-form-item
+            path="phoneNumber"
+          >
+            <n-space>
+              <!-- <span>Remember me</span>
+              <n-switch 
+                size="small"
+                v-model:value="model.rememberMe"
+                :disabled="isLoading"
+              /> -->
+              <router-link to="/forgot-password">Forgot Password ?</router-link>
+            </n-space>
+          </n-form-item>
+
+          <div class="btn-container">
+            <n-button
+              size="large"
+              type="primary"
+              :loading="isLoading"
+              :disabled="inputRequired || isLoading"
+              @click="handleValidateButtonClick"
+            >
+              Sign In
+            </n-button>
+          </div>
+        </n-form>
+      </div>
+
+      <div class="onboarding-form-footer">
+        <span>Don't have an account?</span>
+        <router-link to="/">Sign Up</router-link>
+      </div>
+    </section>
+  </div>
+</template>
+
+<style lang="scss" scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+div.form-container {
+  width: 400px;
+  height: fit-content;
+  border-radius: 0.75rem;
+  padding: 0 20px 40px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  row-gap: 40px;
+  align-items: center;
+  background-color: rgb(255, 255, 255, 0.55);
+
+  &>section {
+    width: 100%;
+
+    // form header
+    &.form-header {
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.14), 0 7px 10px -5px $base-color-3;
+      padding: 22px 20px;
+      position: relative;
+      top: -50px;
+      display: flex;
+      flex-direction: column;
+      row-gap: 15px;
+      align-items: center;
+      background-image: linear-gradient(195deg, $base-color 0%, $base-color 100%);
+
+      // image container
+      div.img-container {
+        display: flex;
+        justify-content: center;
+
+        &>img {
+          height: 3.2rem;
+        }
+      }
+
+      // caption
+      &>h3 {
+        text-align: center;
+        font-size: 1.18rem;
+        color: #ffffff;
+      }
+    }
+
+    // form body
+    &.form-body {
+      margin-top: -50px;
+      padding-left: 5px;
+      padding-right: 5px;
+      display: flex;
+      flex-direction: column;
+      row-gap: 25px;
+
+      // onboarding form
+      &>div.onboarding-form {
+        .n-form {
+          &>.n-form-item {
+            display: block;
+            word-break: break-all;
+
+            // check box container
+            .n-space {
+
+              // terms and conditions
+              .t-and-c-container {
+                a {
+                  text-decoration: none;
+                  font-weight: bold;
+                  color: $base-color;
+                }
+              }
+
+              // nav link
+              a {
+                // text-decoration: none;
+                font-weight: 600;
+                color: $base-color;
+              }
+            }
+          }
+
+          &>.btn-container {
+            .n-button {
+              width: 100%;
+            }
+          }
+        }
+      }
+
+      // onboarding form footer
+      &>div.onboarding-form-footer {
+        display: flex;
+        flex-direction: row;
+        column-gap: 5px;
+        justify-content: center;
+        word-break: break-all;
+
+        // &>span {}
+
+        a {
+          text-decoration: none;
+          font-weight: bold;
+          color: $base-color;
+        }
+      }
+    }
+  }
+}
+
+// MEDIA QUERY
+
+// XX-SM (<351px)
+@media (max-width: 350.9px) {
+  div.form-container {
+    width: 100%;
+    border-radius: 0.3rem;
+    padding: 0 10px 40px;
+    row-gap: 30px;
+
+    &>section {
+      width: 100%;
+
+      // form header
+      &.form-header {
+        border-radius: 0.25rem;
+        padding: 22px 20px;
+
+        // image container
+        div.img-container {
+          &>img {
+            width: 50%;
+            height: auto;
+          }
+        }
+
+        // caption
+        &>h3 {
+          font-size: 1rem;
+        }
+      }
+
+      // form body
+      &.form-body {
+        padding-left: unset;
+        padding-right: unset;
+
+        // onboarding form
+        // &>div.onboarding-form {}
+
+        // onboarding form footer
+        &>div.onboarding-form-footer {
+          flex-direction: column;
+          row-gap: 5px;
+          text-align: center;
+        }
+      }
+    }
+  }
+}
+
+// X-SM
+@media (min-width: 351px) and (max-width: 575.9px) {
+  div.form-container {
+    width: 100%;
+    border-radius: 0.5rem;
+    row-gap: 30px;
+
+    &>section {
+      width: 100%;
+
+      // form header
+      &.form-header {
+        border-radius: 0.3rem;
+        padding: 22px 20px;
+
+        // image container
+        div.img-container {
+          &>img {
+            height: 3rem;
+          }
+        }
+
+        // caption
+        &>h3 {
+          font-size: 1.1rem;
+        }
+      }
+
+      // form body
+      &.form-body {
+        padding-left: unset;
+        padding-right: unset;
+
+        // onboarding form
+        // &>div.onboarding-form {}
+
+        // onboarding form footer
+        // &>div.onboarding-form-footer {}
+      }
+    }
+  }
+}
+
+// SM
+@media (min-width: 576px) and (max-width: 767.9px) {
+  div.form-container {
+    border-radius: 0.5rem;
+    row-gap: 30px;
+
+    &>section {
+      width: 100%;
+
+      // form header
+      &.form-header {
+        border-radius: 0.3rem;
+        padding: 22px 20px;
+
+        // image container
+        div.img-container {
+          &>img {
+            height: 3rem;
+          }
+        }
+
+        // caption
+        &>h3 {
+          font-size: 1.1rem;
+        }
+      }
+
+      // form body
+      &.form-body {
+        padding-left: unset;
+        padding-right: unset;
+
+        // onboarding form
+        // &>div.onboarding-form {}
+
+        // onboarding form footer
+        // &>div.onboarding-form-footer {}
+      }
+    }
+  }
+}
+
+// MD
+// @media (min-width: 768px) and (max-width: 991.9px) {}
+
+// LG
+// @media (min-width: 992px) and (max-width: 1200.9px) {}
+
+// XL
+// @media (min-width: 1201px) and (max-width: 1499.9px) {}
+
+// XXL
+// @media (min-width: 1500px) {}
+</style>
